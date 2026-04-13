@@ -17,7 +17,7 @@ from mcp.client.stdio import stdio_client
 
 # Rough estimate: 1 token per 4 chars of decompiled C
 CHARS_PER_TOKEN = 4
-AVG_FUNCTION_CHARS = 800  # average decompiled function length
+AVG_FUNCTION_CHARS = 3200  # average decompiled IL2CPP function length (includes runtime calls)
 CONTEXT_WINDOW = 200_000
 
 

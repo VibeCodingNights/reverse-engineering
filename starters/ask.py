@@ -39,9 +39,11 @@ Be specific. Cite function names and field offsets. Flag anything you're guessin
 
 def hunt_top_class(metadata_dir: Path) -> tuple[str, list[str]]:
     """Find the most relevant coin-related class from metadata. Returns (class_name, matched_terms)."""
-    from collections import Counter, defaultdict
+    from collections import defaultdict
 
-    terms = ["coin", "currency", "balance", "purchase", "reward", "money", "wallet"]
+    terms = ["coin", "currency", "balance", "purchase", "iap",
+             "reward", "score", "wallet", "inventory", "money",
+             "shop", "store", "transaction", "payment", "price"]
     class_hits = defaultdict(set)
 
     # Search script.json
@@ -64,7 +66,7 @@ def hunt_top_class(metadata_dir: Path) -> tuple[str, list[str]]:
         current_class = None
         with open(dump_path) as f:
             for line in f:
-                match = re.match(r'\s*(?:public|private|internal)?\s*class\s+(\w+)', line)
+                match = re.match(r'\s*(?:public|private|internal)?\s*(?:static|abstract|sealed)?\s*class\s+(\w+)', line)
                 if match:
                     current_class = match.group(1)
                 if current_class:

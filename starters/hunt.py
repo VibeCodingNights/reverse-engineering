@@ -32,8 +32,8 @@ def search_dump_cs(dump_path: Path, terms: list[str]) -> dict[str, dict]:
 
     with open(dump_path) as f:
         for line in f:
-            # Detect class definitions
-            class_match = re.match(r'\s*(?:public|private|internal)?\s*class\s+(\w+)', line)
+            # Detect class definitions (handles modifiers like static, abstract, sealed)
+            class_match = re.match(r'\s*(?:public|private|internal)?\s*(?:static|abstract|sealed)?\s*class\s+(\w+)', line)
             if class_match:
                 current_class = class_match.group(1)
 

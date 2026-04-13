@@ -67,7 +67,7 @@ In Claude Desktop, ask:
 
 > "List all functions in the current binary."
 
-You should see the warmup binary's functions: `main`, `process`, `greet`, `fibonacci`, `reverse_string`, `add`, `multiply`.
+You should see the warmup binary's 10 functions: `main`, `process`, `greet`, `fibonacci`, `reverse_string`, `add`, `multiply`, `max_val`, `min_val`, `sum_to`.
 
 If you see them, the setup works. Move on to the game binary.
 
@@ -79,7 +79,7 @@ from mcp.client.stdio import stdio_client
 
 server_params = StdioServerParameters(
     command="python",
-    args=["path/to/ghidra_mcp_bridge.py"],
+    args=["-m", "ghidra_mcp"],
 )
 
 async with stdio_client(server_params) as (read, write):
