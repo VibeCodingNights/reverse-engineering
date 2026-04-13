@@ -143,9 +143,14 @@ def ask_claude(class_name: str, matched_terms: list[str], decompiled_code: str) 
     return message.content[0].text
 
 
+def _default_metadata_dir() -> str:
+    """Resolve metadata dir relative to this script, not CWD."""
+    return str(Path(__file__).resolve().parent.parent / "metadata")
+
+
 def main():
     parser = argparse.ArgumentParser(description="End-to-end: hunt -> decompile -> ask")
-    parser.add_argument("--metadata-dir", default="../metadata",
+    parser.add_argument("--metadata-dir", default=_default_metadata_dir(),
                         help="Path to Il2CppDumper output directory")
     parser.add_argument("--class-name", help="Override: decompile this class instead of hunting")
     args = parser.parse_args()

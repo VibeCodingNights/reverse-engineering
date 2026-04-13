@@ -132,6 +132,28 @@ def main():
     output_dir = sys.argv[2] if len(sys.argv) > 2 else "extracted"
 
     binary_path, metadata_path = extract_apk(apk_path, output_dir)
+
+    # Check for encrypted metadata and decrypt if needed
+    with open(metadata_path, "rb") as f:
+        magic = f.read(4)
+    if magic != b'\xAF\x1B\xB1\xFA':
+        print("\nMetadata appears encrypted (missing IL2CPP magic bytes).")
+        decrypt_script = Path(__file__).parent / "decrypt_metadata.py"
+        if decrypt_script.exists():
+            decrypted_path = metadata_path.replace("global-metadata.dat", "global-metadata-decrypted.dat")
+            print(f"Running: python {decrypt_script} {metadata_path} {decrypted_path}")
+            try:
+                subprocess.run(
+                    [sys.executable, str(decrypt_script), metadata_path, decrypted_path],
+                    check=True,
+                )
+                metadata_path = decrypted_path
+                print(f"Decrypted metadata: {decrypted_path}")
+            except subprocess.CalledProcessError:
+                print("Decryption failed. See target/decrypt_metadata.py for manual usage.")
+        else:
+            print("Run target/decrypt_metadata.py on global-metadata.dat before using Il2CppDumper.")
+
     run_il2cppdumper(binary_path, metadata_path, os.path.join(output_dir, "output"))
 
     print("\nNext steps:")

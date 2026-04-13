@@ -95,9 +95,14 @@ def search_script_json(script_path: Path, terms: list[str]) -> dict[str, list[st
     return dict(classes)
 
 
+def _default_metadata_dir() -> str:
+    """Resolve metadata dir relative to this script, not CWD."""
+    return str(Path(__file__).resolve().parent.parent / "metadata")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Hunt for coin/currency functions in metadata")
-    parser.add_argument("--metadata-dir", default="../metadata",
+    parser.add_argument("--metadata-dir", default=_default_metadata_dir(),
                         help="Path to Il2CppDumper output directory")
     parser.add_argument("--terms", nargs="+", default=SEARCH_TERMS,
                         help="Search terms (default: coin currency balance ...)")

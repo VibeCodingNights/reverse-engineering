@@ -100,10 +100,15 @@ def format_output(class_name: str, results: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _default_script_json() -> str:
+    """Resolve script.json relative to this script, not CWD."""
+    return str(Path(__file__).resolve().parent.parent / "metadata" / "script.json")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Decompile all methods of a class via GhidraMCP")
-    parser.add_argument("class_name", help="Class name to decompile (e.g., CoinManager)")
-    parser.add_argument("--script-json", default="../metadata/script.json",
+    parser.add_argument("class_name", help="Class name to decompile (e.g., CurrencyData)")
+    parser.add_argument("--script-json", default=_default_script_json(),
                         help="Path to script.json from Il2CppDumper")
     parser.add_argument("-o", "--output", help="Output file (default: stdout)")
     args = parser.parse_args()
