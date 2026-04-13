@@ -6,15 +6,15 @@ Your LLM can decompile a function. It cannot understand a binary.
 
 Wire a model to Ghidra through MCP. Ask it what a program does. It decompiles a handful of functions, hallucinates the other eight thousand, and gives you a confident summary of software it never read.
 
-Tonight's target: a real game with 191,200 functions. The challenge isn't "hack the game." It's: **which 20 functions out of 191,200 answer your question?**
+Tonight's target: a real game with 118,813 functions. The challenge isn't "hack the game." It's: **which 20 functions out of 118,813 answer your question?**
 
 ---
 
 ## The Problem
 
-The binary has 191,200 functions. Decompiling all of them would burn 153 million tokens — 765x more than fits in a context window. Even listing their signatures blows the budget.
+The binary has 118,813 functions. Decompiling all of them would burn ~95 million tokens — 475x more than fits in a context window. Even listing their signatures blows the budget.
 
-You have metadata: every function has a name (courtesy of Unity leaking its metadata file). You know there are classes like `CurrencyData` (81 methods), `W3iBalance` (107 methods), and `InAppPurchaseHandler` (75 methods). But which of those methods actually modify the coin balance? And when the LLM reads the decompiled C, does it understand it — or does it hallucinate?
+You have metadata: every function has a name (courtesy of Unity leaking its metadata file). You know there are classes like `SYBO_Subway_Coins_CoinManager` (15 methods), `PurchaseHandler` (44 methods), and `InAppPurchaseHandler` (20 methods). But which of those methods actually modify the coin balance? And when the LLM reads the decompiled C, does it understand it — or does it hallucinate?
 
 The best frontier model recovers 59% of reverse engineering targets. A human expert hits 92%. The gap is not intelligence. It's that nobody built the layer between the disassembler and the prompt.
 
@@ -54,7 +54,7 @@ Or **load the pre-analyzed Ghidra project** from the USB drive (fastest path —
 If loading from scratch:
 1. Open `libil2cpp.so` in Ghidra. Auto-analysis takes 5–15 minutes. While it runs, read [`docs/IL2CPP_PRIMER.md`](docs/IL2CPP_PRIMER.md).
 2. Open Script Manager (Window > Script Manager), run `ghidra.py`, point it at `output/script.json`.
-3. Watch functions rename from `FUN_00xxxxxx` to `CoinManager$$AddCoins`.
+3. Watch functions rename from `FUN_00xxxxxx` to `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`.
 
 ### 3. Ask the LLM to find the coins (~15 min)
 

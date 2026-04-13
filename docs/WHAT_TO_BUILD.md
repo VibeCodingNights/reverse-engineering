@@ -1,6 +1,6 @@
 # What to Build
 
-Every project below attacks the same problem: narrowing 191,200 functions to the ones that answer your question.
+Every project below attacks the same problem: narrowing 118,813 functions to the ones that answer your question.
 
 ## For Everyone
 
@@ -8,11 +8,11 @@ Every project below attacks the same problem: narrowing 191,200 functions to the
 
 `starters/hunt.py` does keyword search on metadata. Can you do better?
 
-- **Call graph expansion.** `CoinManager$$AddCoins` calls what? What calls it? Use GhidraMCP's `get_callgraph` to expand from known coin functions to their dependencies and callers. Build the full coin subsystem graph.
+- **Call graph expansion.** `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp` calls what? What calls it? Use GhidraMCP's `get_callgraph` to expand from known coin functions to their dependencies and callers. Build the full coin subsystem graph.
 
-- **Field cross-referencing.** `dump.cs` shows field offsets: `public int coinBalance; // 0x1C`. Find all functions that read or write to offset `0x1C` on a `CoinManager` object. That's your real list of coin-modifying functions, regardless of their name.
+- **Field cross-referencing.** `dump.cs` shows field offsets for coin-related classes. Find all functions that read or write to those offsets. That's your real list of coin-modifying functions, regardless of their name.
 
-- **Class clustering.** `CoinManager`, `CurrencyController`, `RewardManager`, `IAPController` probably form a subsystem. Build the dependency graph between them. Which classes call which? What's the boundary of the "economy" subsystem?
+- **Class clustering.** `SYBO_Subway_Coins_CoinManager`, `CurrencyExchangePopup`, `RewardManager`, `InAppPurchaseHandler`, `ShopPurchaseManager` probably form a subsystem. Build the dependency graph between them. Which classes call which? What's the boundary of the "economy" subsystem?
 
 ### Selective Decompilation Pipeline
 
@@ -30,8 +30,8 @@ Does a summary of 5 related classes produce better analysis than raw decompilati
 
 Trace the coin flow end-to-end:
 
-- **Storage.** Where is the balance stored? A field on `CoinManager`? `PlayerPrefs`? A local save file? A server database?
-- **Modification.** What happens when `AddCoins` is called? Does it write to a field and return? Does it call a save function? Does it make a network request?
+- **Storage.** Where is the balance stored? A field on `SYBO_Subway_Coins_CoinManager`? `PlayerPrefs`? A local save file? A server database?
+- **Modification.** What happens when `Coin_OnCoinPickedUp` is called? Does it write to a field and return? Does it call a save function? Does it make a network request?
 - **Integrity.** Is there a checksum on the save file? Encryption? A server-side balance that syncs?
 - **IAP.** What does the IAP controller do when a purchase succeeds? Does it grant coins immediately or wait for server confirmation?
 - **Verdict.** Could you get unlimited coins with a memory editor? Why or why not?
@@ -42,10 +42,10 @@ This is genuine reverse engineering — using triage tools to answer a concrete 
 
 Use the LLM to rename and comment functions via GhidraMCP, then re-analyze:
 
-1. Decompile `CoinManager$$AddCoins`
+1. Decompile `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`
 2. Ask the LLM what it does
 3. Write the LLM's understanding as a Ghidra comment via `set_comment`
-4. Decompile functions that *call* `AddCoins` — the comment now appears in their decompilation context
+4. Decompile functions that *call* `Coin_OnCoinPickedUp` -- the comment now appears in their decompilation context
 5. Does the LLM's analysis of the callers improve with the annotated callee?
 
 Build the automated version: decompile → analyze → annotate → re-decompile callers → repeat.
@@ -64,7 +64,7 @@ pip install frida-tools
 # github.com/dnakov/frida-mcp
 ```
 
-Hook `CoinManager$$AddCoins` at runtime. Capture arguments and return values. Feed runtime traces to the LLM alongside the static decompilation.
+Hook `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp` at runtime. Capture arguments and return values. Feed runtime traces to the LLM alongside the static decompilation.
 
 **The question:** Does dynamic data correct the hallucinations from static analysis alone? Where does static analysis get it wrong that runtime traces get it right?
 

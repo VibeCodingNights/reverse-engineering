@@ -41,7 +41,7 @@ This metadata exists because the IL2CPP runtime needs it for reflection, seriali
 
 Il2CppDumper reads both files and correlates them:
 
-- Maps binary addresses to method names: `0x1a3400 → CoinManager$$AddCoins`
+- Maps binary addresses to method names: `0x1a3400 → SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`
 - Reconstructs C# class definitions with field offsets
 - Extracts all string literals with their binary addresses
 
@@ -49,16 +49,17 @@ Il2CppDumper reads both files and correlates them:
 
 **`dump.cs`** — Reconstructed C# class definitions:
 ```csharp
-public class CoinManager : MonoBehaviour
+// Namespace: SYBO.Subway.Coins
+public class CoinManager : MonoBehaviour // IL2CPP name: SYBO_Subway_Coins_CoinManager
 {
-    public int coinBalance;  // 0x1C
-    public float multiplier; // 0x20
+    public CoinStats coinStats;  // 0x18
+    public CoinCurve coinCurve;  // 0x20
 
     // RVA: 0x1A3400
-    public void AddCoins(int amount) { }
+    public void Coin_OnCoinPickedUp(Coin coin) { }
 
     // RVA: 0x1A3480
-    public int GetBalance() { }
+    public void RewardCoin(Vector3 position) { }
 }
 ```
 
@@ -70,8 +71,8 @@ No method bodies — just declarations with addresses.
   "ScriptMethod": [
     {
       "Address": 1717248,
-      "Name": "CoinManager$$AddCoins",
-      "Signature": "void CoinManager$$AddCoins(CoinManager* this, int32_t amount, MethodInfo* method)"
+      "Name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp",
+      "Signature": "void SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp(CoinManager* this, Coin* coin, MethodInfo* method)"
     }
   ]
 }
@@ -92,29 +93,38 @@ The `$$` separator is an IL2CPP convention: `ClassName$$MethodName`.
 When Ghidra decompiles an IL2CPP function, you get C that reflects the transpiled C++, not the original C#:
 
 ```c
-void CoinManager$$AddCoins(long param_1, int param_2, long param_3) {
+void SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp
+                (long param_1, long param_2, long param_3) {
+    long lVar1;
+
     if (*(long *)(param_1 + 0x10) == 0) {
-        il2cpp_runtime_class_init(CoinManager__TypeInfo);
+        il2cpp_runtime_class_init(SYBO_Subway_Coins_CoinManager__TypeInfo);
     }
-    int iVar1 = *(int *)(param_1 + 0x1c);  // this->coinBalance (field at offset 0x1C)
-    iVar1 = iVar1 + param_2;                // coinBalance + amount
-    *(int *)(param_1 + 0x1c) = iVar1;       // this->coinBalance = result
+    lVar1 = *(long *)(param_2 + 0x28);       // coin->coinValue
+    if (lVar1 == 0) {
+        il2cpp_raise_null_reference_exception();
+    }
+    lVar1 = *(long *)(param_1 + 0x18);       // this->coinStats (field at offset 0x18)
+    if (lVar1 != 0) {
+        SYBO_Subway_Coins_CoinStats$$AddPickedUpCoins(lVar1, 1, 0);
+    }
     return;
 }
 ```
 
 Key patterns:
 - `param_1` is `this` (the object pointer)
-- Field accesses are `*(type *)(param_1 + offset)` — match offsets to `dump.cs`
+- `param_2` is the first argument (e.g., a `Coin` object)
+- Field accesses are `*(type *)(param_1 + offset)` -- match offsets to `dump.cs`
 - `il2cpp_runtime_class_init` initializes static class data on first access
 - `il2cpp_object_new` allocates a new managed object
 - Virtual calls go through method tables: `(*(code **)(*param_1 + vtable_offset))(param_1, ...)`
 
 ## Why This Is a Lever
 
-Without metadata, Ghidra shows you 191,200 functions named `FUN_001a3400`. With metadata, that function is `CoinManager$$AddCoins`. You know its class, you know the field offsets from `dump.cs`, you can search for related classes.
+Without metadata, Ghidra shows you 118,813 functions named `FUN_001a3400`. With metadata, that function is `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`. You know its class, you know the field offsets from `dump.cs`, you can search for related classes.
 
-The metadata doesn't tell you what the function *does* — that's what decompilation is for. But it tells you where to look. That's the difference between reading 191,200 functions and reading 20.
+The metadata doesn't tell you what the function *does* -- that's what decompilation is for. But it tells you where to look. That's the difference between reading 118,813 functions and reading 20.
 
 ## Metadata Encryption
 

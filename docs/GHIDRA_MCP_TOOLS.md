@@ -14,7 +14,7 @@ result = await session.call_tool("list_functions", arguments={})
 
 Returns one function name per line. For IL2CPP binaries with names applied, these are `ClassName$$MethodName` format. Unnamed functions show as `FUN_00xxxxxx`.
 
-**Warning:** On a 191,200-function binary, this returns a lot of data. Consider filtering client-side or using `list_strings` to narrow your search first.
+**Warning:** On a 118,813-function binary, this returns a lot of data. Consider filtering client-side or using `list_strings` to narrow your search first.
 
 ### `decompile_function`
 
@@ -23,11 +23,11 @@ Decompile a function by name.
 ```python
 result = await session.call_tool(
     "decompile_function",
-    arguments={"name": "CoinManager$$AddCoins"}
+    arguments={"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"}
 )
 ```
 
-Returns decompiled C code. For IL2CPP binaries, the code reflects the C++ transpilation — field accesses are pointer arithmetic, virtual calls go through vtables.
+Returns decompiled C code. For IL2CPP binaries, the code reflects the C++ transpilation -- field accesses are pointer arithmetic, virtual calls go through vtables.
 
 ### `get_callgraph`
 
@@ -79,7 +79,7 @@ result = await session.call_tool(
     "set_comment",
     arguments={
         "address": "0x1a3400",
-        "comment": "Adds coins to player balance. No server validation.",
+        "comment": "Handles coin pickup. Delegates to CoinStats. No server validation.",
         "comment_type": "plate"  # plate, pre, post, eol, repeatable
     }
 )
@@ -101,7 +101,7 @@ result = await session.call_tool(
     "set_function_signature",
     arguments={
         "address": "0x1a3400",
-        "signature": "int CoinManager_GetBalance(void* this)"
+        "signature": "void SYBO_Subway_Coins_CoinManager_Coin_OnCoinPickedUp(void* this, void* coin)"
     }
 )
 ```
@@ -116,7 +116,7 @@ This changes how the function appears in Ghidra and in subsequent decompilations
 # 1. Find methods for a class
 functions = await session.call_tool("list_functions", arguments={})
 class_methods = [f for f in functions.content[0].text.split("\n")
-                 if f.startswith("CoinManager$$")]
+                 if f.startswith("SYBO_Subway_Coins_CoinManager$$")]
 
 # 2. Decompile each
 for method in class_methods:
@@ -130,7 +130,7 @@ for method in class_methods:
 ```python
 # 1. Decompile the entry point
 result = await session.call_tool("decompile_function",
-    arguments={"name": "CoinManager$$AddCoins"})
+    arguments={"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"})
 
 # 2. Get its callees
 callgraph = await session.call_tool("get_callgraph",
@@ -145,16 +145,16 @@ callgraph = await session.call_tool("get_callgraph",
 ```python
 # 1. Analyze a function
 result = await session.call_tool("decompile_function",
-    arguments={"name": "CoinManager$$AddCoins"})
+    arguments={"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"})
 
 # 2. Add your understanding as a comment
 await session.call_tool("set_comment", arguments={
     "address": "0x1a3400",
-    "comment": "Adds coins. Writes to field 0x1C (coinBalance). No server call.",
+    "comment": "Handles coin pickup. Delegates to CoinStats$$AddPickedUpCoins. No server call.",
     "comment_type": "plate"
 })
 
-# 3. Decompile a caller — your comment now appears in context
+# 3. Decompile a caller -- your comment now appears in context
 result = await session.call_tool("decompile_function",
-    arguments={"name": "RewardManager$$GrantReward"})
+    arguments={"name": "SYBO_Subway_Coins_CoinManager$$RewardCoin"})
 ```

@@ -37,7 +37,7 @@ Output: ranked list of classes most likely to handle coins, currency, and purcha
 Given a class name, looks up its methods in `script.json`, decompiles each via GhidraMCP. Outputs all decompilations — one class's worth of C, small enough for a single prompt.
 
 ```bash
-python class_decompile.py CoinManager [--script-json ../metadata/script.json]
+python class_decompile.py SYBO_Subway_Coins_CoinManager [--script-json ../metadata/script.json]
 ```
 
 ### `ask.py` — End-to-end pipeline

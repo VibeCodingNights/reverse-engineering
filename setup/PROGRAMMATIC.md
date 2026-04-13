@@ -38,7 +38,7 @@ async def main():
             # IL2CPP names use ClassName$$MethodName format
             result = await session.call_tool(
                 "decompile_function",
-                arguments={"name": "CoinManager$$AddCoins"}
+                arguments={"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"}
             )
             print(result.content[0].text)
 
@@ -95,13 +95,13 @@ async def main():
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            results = await decompile_class(session, "CoinManager", "metadata/script.json")
+            results = await decompile_class(session, "SYBO_Subway_Coins_CoinManager", "metadata/script.json")
 
-            with open("CoinManager_decompiled.c", "w") as f:
+            with open("SYBO_Subway_Coins_CoinManager_decompiled.c", "w") as f:
                 for name, code in results.items():
                     f.write(f"// --- {name} ---\n{code}\n\n")
 
-            print(f"Wrote {len(results)} decompilations to CoinManager_decompiled.c")
+            print(f"Wrote {len(results)} decompilations to SYBO_Subway_Coins_CoinManager_decompiled.c")
 
 asyncio.run(main())
 ```

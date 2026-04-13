@@ -50,7 +50,7 @@ dotnet Il2CppDumper.dll libil2cpp.so global-metadata.dat output/
 grep -i "coin" output/dump.cs
 ```
 
-You should see classes like `CoinManager`, `CurrencyController`, or similar. If you see them, the extraction worked.
+You should see classes like `SYBO_Subway_Coins_CoinManager`, `CurrencyExchangePopup`, or similar. If you see them, the extraction worked.
 
 ## Import Names into Ghidra
 
@@ -58,7 +58,7 @@ You should see classes like `CoinManager`, `CurrencyController`, or similar. If 
 2. Open **Window > Script Manager**.
 3. Run `ghidra.py` from the Il2CppDumper output directory.
 4. When prompted, point it at `output/script.json`.
-5. Functions rename from `FUN_00xxxxxx` to `CoinManager$$AddCoins`, `PlayerController$$Update`, etc.
+5. Functions rename from `FUN_00xxxxxx` to `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`, `PlayerController$$Update`, etc.
 
 ## Skip All of This
 
