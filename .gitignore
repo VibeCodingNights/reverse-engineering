@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ghidra projects
+*.gpr
+*.rep/
+
+# Extracted APK contents
+extracted/
+*.apk
+
+# Il2CppDumper output (committed in metadata/ only)
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Binary — the game binary does NOT go in the repo
+libil2cpp.so
+global-metadata.dat
