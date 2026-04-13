@@ -107,7 +107,7 @@ def _default_script_json() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Decompile all methods of a class via GhidraMCP")
-    parser.add_argument("class_name", help="Class name to decompile (e.g., CurrencyData)")
+    parser.add_argument("class_name", help="Class name to decompile (e.g., SYBO_Subway_Coins_CoinManager)")
     parser.add_argument("--script-json", default=_default_script_json(),
                         help="Path to script.json from Il2CppDumper")
     parser.add_argument("-o", "--output", help="Output file (default: stdout)")
