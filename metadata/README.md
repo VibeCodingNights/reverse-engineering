@@ -1,6 +1,8 @@
 # Metadata
 
-Pre-generated Il2CppDumper output for the pinned APK version.
+Pre-generated Il2CppDumper output for **Subway Surfers 6.04.0**.
+
+The metadata was decrypted before dumping -- Subway Surfers encrypts `global-metadata.dat` with a page-based XOR cipher (key `0x66`). See `target/decrypt_metadata.py` and `docs/IL2CPP_PRIMER.md` for details.
 
 These files contain class names, method names, field names, and string literals recovered from Unity's `global-metadata.dat`. They do NOT contain the binary itself or any decompiled code.
 
@@ -15,8 +17,11 @@ These files contain class names, method names, field names, and string literals 
 ## How Generated
 
 ```bash
-# From the pinned APK version (see target/DOWNLOAD.md for version and hash)
-Il2CppDumper libil2cpp.so global-metadata.dat output/
+# From Subway Surfers 6.04.0
+# SHA256: 00e45db1a8cfb99cf71bad6e3f6f427fea349196f3813631e537e15b4e5c0088
+# Metadata was decrypted first (XOR 0x66):
+python target/decrypt_metadata.py global-metadata.dat global-metadata-decrypted.dat
+Il2CppDumper libil2cpp.so global-metadata-decrypted.dat output/
 ```
 
 ## Using These Files

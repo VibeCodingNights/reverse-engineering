@@ -6,15 +6,15 @@ Your LLM can decompile a function. It cannot understand a binary.
 
 Wire a model to Ghidra through MCP. Ask it what a program does. It decompiles a handful of functions, hallucinates the other eight thousand, and gives you a confident summary of software it never read.
 
-Tonight's target: a real game with 53,000 functions. The challenge isn't "hack the game." It's: **which 20 functions out of 53,000 answer your question?**
+Tonight's target: a real game with 191,200 functions. The challenge isn't "hack the game." It's: **which 20 functions out of 191,200 answer your question?**
 
 ---
 
 ## The Problem
 
-The binary has 53,000 functions. Decompiling all of them would burn 43 million tokens — 215x more than fits in a context window. Even listing their signatures blows the budget.
+The binary has 191,200 functions. Decompiling all of them would burn 153 million tokens — 765x more than fits in a context window. Even listing their signatures blows the budget.
 
-You have metadata: every function has a name (courtesy of Unity leaking its metadata file). You know there's a class called `CoinManager` with 47 methods. But which of those 47 methods actually modify the coin balance? And when the LLM reads the decompiled C, does it understand it — or does it hallucinate?
+You have metadata: every function has a name (courtesy of Unity leaking its metadata file). You know there are classes like `CurrencyData` (81 methods), `W3iBalance` (107 methods), and `InAppPurchaseHandler` (75 methods). But which of those methods actually modify the coin balance? And when the LLM reads the decompiled C, does it understand it — or does it hallucinate?
 
 The best frontier model recovers 59% of reverse engineering targets. A human expert hits 92%. The gap is not intelligence. It's that nobody built the layer between the disassembler and the prompt.
 

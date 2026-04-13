@@ -14,12 +14,17 @@ The pre-analyzed Ghidra project saves you 15+ minutes. Open it directly in Ghidr
 
 ## Option 2: Download the APK
 
-**Target: Subway Surfers**
+**Target: Subway Surfers 6.04.0**
+
+| | |
+|---|---|
+| Version | 6.04.0 |
+| SHA256 | `00e45db1a8cfb99cf71bad6e3f6f427fea349196f3813631e537e15b4e5c0088` |
 
 1. Go to [APKMirror](https://apkmirror.com) or [APKPure](https://apkpure.com).
-2. Search for "Subway Surfers".
+2. Search for "Subway Surfers" and find version **6.04.0** specifically.
 3. Download the **arm64-v8a** variant (`.apk`, not `.apks` or `.xapk`).
-4. Verify the SHA256 hash matches the one posted at the event.
+4. Verify the SHA256: `sha256sum SubwaySurfers_6.04.0.apk`
 
 ## Option 3: extract.py (automated)
 

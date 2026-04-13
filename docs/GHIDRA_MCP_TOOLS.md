@@ -14,7 +14,7 @@ result = await session.call_tool("list_functions", arguments={})
 
 Returns one function name per line. For IL2CPP binaries with names applied, these are `ClassName$$MethodName` format. Unnamed functions show as `FUN_00xxxxxx`.
 
-**Warning:** On a 53,000-function binary, this returns a lot of data. Consider filtering client-side or using `list_strings` to narrow your search first.
+**Warning:** On a 191,200-function binary, this returns a lot of data. Consider filtering client-side or using `list_strings` to narrow your search first.
 
 ### `decompile_function`
 

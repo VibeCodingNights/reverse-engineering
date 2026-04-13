@@ -1,35 +1,35 @@
 # The Problem
 
-This binary has 53,000 functions.
+This binary has 191,200 functions.
 
-You can decompile any one of them. But if you decompiled all 53,000, that's 43 million tokens — 215 times more than fits in the context window.
+You can decompile any one of them. But if you decompiled all 191,200, that's 153 million tokens — 765 times more than fits in the context window.
 
 ## The Math
 
 | | Count |
 |---|---|
-| Functions in binary | ~53,000 |
-| Named classes (from IL2CPP metadata) | ~5,200 |
-| Average decompiled function length | ~800 characters |
+| Functions in binary | 191,200 |
+| Named classes (from IL2CPP metadata) | 8,363 |
+| Average decompiled function length | ~3,200 characters |
 | Characters per token (rough) | ~4 |
-| **Total tokens to decompile everything** | **~43,000,000** |
+| **Total tokens to decompile everything** | **~152,960,000** |
 | Context window | 200,000 |
-| **Over budget by** | **~215x** |
+| **Over budget by** | **~765x** |
 
 ## What Happens When You Ask the LLM
 
 You connect GhidraMCP and ask: *"How do coins work in this game?"*
 
-The model calls `list_functions`. It gets back 53,000 names. That alone might burn 50,000 tokens. It scans the names, picks a few that look coin-related, decompiles maybe 5–10 of them. It writes a confident summary.
+The model calls `list_functions`. It gets back 191,200 names. That alone might burn 200,000+ tokens — the entire context window just for the function list. It scans the names, picks a few that look coin-related, decompiles maybe 5–10 of them. It writes a confident summary.
 
-**It just summarized a 53,000-function binary by reading 10 functions.** That's 0.02% coverage. The other 99.98% is hallucination-by-omission.
+**It just summarized a 191,200-function binary by reading 10 functions.** That's 0.005% coverage. The other 99.995% is hallucination-by-omission.
 
 ## Why Metadata Isn't Enough
 
-You have Il2CppDumper output: every class name, every method name, every field name. You know there's a `CoinManager` class with 47 methods. Great. But:
+You have Il2CppDumper output: every class name, every method name, every field name. You know there's a `CurrencyData` class with 81 methods, a `W3iBalance` class with 107 methods, an `InAppPurchaseHandler` with 75 methods. Great. But:
 
-- Which of those 47 methods actually modify the coin balance?
-- `CoinManager$$AddCoins` calls functions in `ServerSync`, `SaveManager`, and `InventoryController`. Are those calls important?
+- Which of those methods actually modify the coin balance?
+- A coin-related function calls into `ServerSync`, `SaveManager`, and other controllers. Are those calls important?
 - The string literal `"coin_balance"` appears at address `0x1a2b3c`. Which function reads it? Is it the real balance or a display value?
 
 Names tell you *where to look*. They don't tell you *what happens*.
@@ -49,7 +49,7 @@ The best frontier model recovers 59% of reverse engineering targets from decompi
 
 The missing piece is **triage** — compress the binary into a map the model can reason about:
 
-1. **Search.** Don't list all 53,000 functions. Search the metadata for relevant terms. Cross-reference classes. Build a ranked candidate list.
+1. **Search.** Don't list all 191,200 functions. Search the metadata for relevant terms. Cross-reference classes. Build a ranked candidate list.
 
 2. **Expand.** From a candidate function, follow the call graph. What does it call? What calls it? Build the dependency cluster.
 

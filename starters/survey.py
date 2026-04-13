@@ -20,6 +20,10 @@ CHARS_PER_TOKEN = 4
 AVG_FUNCTION_CHARS = 3200  # average decompiled IL2CPP function length (includes runtime calls)
 CONTEXT_WINDOW = 200_000
 
+# Note: all numbers below are computed dynamically from the loaded binary.
+# CLAUDE.md estimates (53K functions, 43M tokens) were placeholders.
+# Subway Surfers 6.04.0 has ~191,200 functions across ~8,363 classes.
+
 
 def parse_class_name(function_name: str) -> str:
     """Extract class name from IL2CPP ClassName$$MethodName format."""

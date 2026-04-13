@@ -35,7 +35,7 @@ Unity ships a metadata file alongside the binary. This file contains:
 - **Every string literal** used in the C# source
 - Type information, interface implementations, enum values
 
-This metadata exists because the IL2CPP runtime needs it for reflection, serialization, and garbage collection. Unity could encrypt it (some games do), but most don't.
+This metadata exists because the IL2CPP runtime needs it for reflection, serialization, and garbage collection. Unity could encrypt it (some games do) — see the "Metadata Encryption" section below.
 
 ## What Il2CppDumper Does
 
@@ -112,6 +112,21 @@ Key patterns:
 
 ## Why This Is a Lever
 
-Without metadata, Ghidra shows you 53,000 functions named `FUN_001a3400`. With metadata, that function is `CoinManager$$AddCoins`. You know its class, you know the field offsets from `dump.cs`, you can search for related classes.
+Without metadata, Ghidra shows you 191,200 functions named `FUN_001a3400`. With metadata, that function is `CoinManager$$AddCoins`. You know its class, you know the field offsets from `dump.cs`, you can search for related classes.
 
-The metadata doesn't tell you what the function *does* — that's what decompilation is for. But it tells you where to look. That's the difference between reading 53,000 functions and reading 20.
+The metadata doesn't tell you what the function *does* — that's what decompilation is for. But it tells you where to look. That's the difference between reading 191,200 functions and reading 20.
+
+## Metadata Encryption
+
+Some games encrypt `global-metadata.dat` to hinder analysis. Subway Surfers (6.04.0) uses a page-based XOR cipher with byte key `0x66`. The metadata file is divided into pages, and each page is XORed against the key byte.
+
+Il2CppDumper expects plaintext metadata. If you feed it an encrypted `global-metadata.dat`, it will fail to parse the header. The script `target/decrypt_metadata.py` handles Subway Surfers' encryption scheme -- run it before Il2CppDumper:
+
+```bash
+python target/decrypt_metadata.py global-metadata.dat global-metadata-decrypted.dat
+Il2CppDumper libil2cpp.so global-metadata-decrypted.dat output/
+```
+
+The metadata committed in `metadata/` has already been decrypted. If you're using the USB drive or the pre-generated files, you don't need to run the decryption step.
+
+Other games may use different encryption schemes (AES, custom ciphers, metadata structure randomization). The XOR `0x66` pattern is specific to this version of Subway Surfers.
