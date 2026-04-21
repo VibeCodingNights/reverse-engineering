@@ -5,10 +5,18 @@ Working scripts, not stubs. Each one does something useful out of the box.
 ## Requirements
 
 ```bash
-pip install "mcp>=1.12" anthropic
+pip install -e .
+# Only if you want ask.py --api to call the Anthropic API:
+pip install -e .[llm]
 ```
 
-Set `ANTHROPIC_API_KEY` in your environment for `ask.py`.
+Set `GHIDRA_BRIDGE` to the path of `bridge_mcp_ghidra.py` from your GhidraMCP clone:
+
+```bash
+export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py
+```
+
+`ask.py --api` also needs `ANTHROPIC_API_KEY`. Without `--api` it prints the prompt for pasting into Claude Desktop.
 
 ## Scripts
 
@@ -42,10 +50,11 @@ python class_decompile.py SYBO_Subway_Coins_CoinManager [--script-json ../metada
 
 ### `ask.py` — End-to-end pipeline
 
-Runs hunt -> picks the top class -> decompiles it -> sends to Claude with a targeted prompt. The full loop.
+Runs hunt -> picks the top class -> decompiles it -> builds a targeted prompt. Default: prints the prompt for pasting into Claude Desktop. With `--api`: calls the Anthropic API directly.
 
 ```bash
-python ask.py [--metadata-dir ../metadata]
+python ask.py [--metadata-dir ../metadata]           # print prompt
+python ask.py --api                                   # call API (needs ANTHROPIC_API_KEY)
 ```
 
 ## What to Do With These

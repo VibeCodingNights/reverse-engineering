@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""End-to-end pipeline: hunt -> decompile -> ask the LLM.
+"""End-to-end pipeline: hunt -> decompile -> prompt.
 
 Searches metadata for coin-related classes, decompiles the top candidate
-via GhidraMCP, and sends the decompilation to Claude with a targeted prompt.
+via GhidraMCP, and builds a ready-to-paste prompt for Claude.
+
+Default: prints the prompt to stdout — paste into Claude Desktop.
+With --api: also sends the prompt to the Anthropic API and prints the response
+(requires ANTHROPIC_API_KEY and the `llm` extra: pip install -e .[llm]).
 
 Usage:
-    python ask.py [--metadata-dir ../metadata]
+    python ask.py [--metadata-dir ../metadata] [--class-name CLASS] [--api]
 
-Requires: ANTHROPIC_API_KEY environment variable.
+Requires: GHIDRA_BRIDGE env var pointing at bridge_mcp_ghidra.py.
 """
 
 import argparse
@@ -17,7 +21,6 @@ import os
 import sys
 from pathlib import Path
 
-import anthropic
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -35,6 +38,20 @@ Answer these questions:
 5. What would you need to verify that your analysis is correct? What are you uncertain about?
 
 Be specific. Cite function names and field offsets. Flag anything you're guessing about."""
+
+
+def _bridge_params() -> StdioServerParameters:
+    """Build MCP params from GHIDRA_BRIDGE env var (path to bridge_mcp_ghidra.py)."""
+    bridge = os.environ.get("GHIDRA_BRIDGE")
+    if not bridge:
+        print(
+            "Error: GHIDRA_BRIDGE env var not set.\n"
+            "Point it at your bridge_mcp_ghidra.py, e.g.:\n"
+            "  export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return StdioServerParameters(command="python", args=[bridge])
 
 
 def hunt_top_class(metadata_dir: Path) -> tuple[str, list[str]]:
@@ -100,10 +117,9 @@ async def decompile_class(class_name: str, script_json_path: str) -> str:
 
     print(f"Decompiling {len(methods)} methods for {class_name}...", file=sys.stderr)
 
-    server_params = StdioServerParameters(command="python", args=["-m", "ghidra_mcp"])
     parts = []
 
-    async with stdio_client(server_params) as (read, write):
+    async with stdio_client(_bridge_params()) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -122,17 +138,32 @@ async def decompile_class(class_name: str, script_json_path: str) -> str:
     return "\n".join(parts)
 
 
-def ask_claude(class_name: str, matched_terms: list[str], decompiled_code: str) -> str:
-    """Send decompiled code to Claude for analysis."""
-    client = anthropic.Anthropic()
-
-    prompt = ANALYSIS_PROMPT.format(
+def build_prompt(class_name: str, matched_terms: list[str], decompiled_code: str) -> str:
+    return ANALYSIS_PROMPT.format(
         class_name=class_name,
         matched_terms=", ".join(matched_terms),
         decompiled_code=decompiled_code,
     )
 
-    print(f"\nSending {len(decompiled_code):,} chars to Claude...", file=sys.stderr)
+
+def ask_claude(prompt: str) -> str:
+    """Send a prompt to Claude. Imports anthropic lazily so it's only required for --api."""
+    try:
+        import anthropic
+    except ImportError:
+        print(
+            "Error: anthropic not installed. Run: pip install -e .[llm]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("Error: ANTHROPIC_API_KEY not set", file=sys.stderr)
+        sys.exit(1)
+
+    client = anthropic.Anthropic()
+
+    print(f"\nSending {len(prompt):,} chars to Claude...", file=sys.stderr)
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -149,15 +180,14 @@ def _default_metadata_dir() -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="End-to-end: hunt -> decompile -> ask")
+    parser = argparse.ArgumentParser(description="End-to-end: hunt -> decompile -> prompt")
     parser.add_argument("--metadata-dir", default=_default_metadata_dir(),
                         help="Path to Il2CppDumper output directory")
     parser.add_argument("--class-name", help="Override: decompile this class instead of hunting")
+    parser.add_argument("--api", action="store_true",
+                        help="Call the Anthropic API and print the response. "
+                             "Default is to print the prompt for pasting into Claude Desktop.")
     args = parser.parse_args()
-
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("Error: Set ANTHROPIC_API_KEY environment variable", file=sys.stderr)
-        sys.exit(1)
 
     metadata_dir = Path(args.metadata_dir)
     script_json = metadata_dir / "script.json"
@@ -179,13 +209,21 @@ def main():
     # Step 2: Decompile
     decompiled = asyncio.run(decompile_class(class_name, str(script_json)))
 
-    # Step 3: Ask
-    analysis = ask_claude(class_name, matched_terms, decompiled)
+    # Step 3: Build prompt
+    prompt = build_prompt(class_name, matched_terms, decompiled)
 
-    print(f"\n{'='*60}")
-    print(f"ANALYSIS: {class_name}")
-    print(f"{'='*60}\n")
-    print(analysis)
+    if args.api:
+        analysis = ask_claude(prompt)
+        print(f"\n{'='*60}")
+        print(f"ANALYSIS: {class_name}")
+        print(f"{'='*60}\n")
+        print(analysis)
+    else:
+        # Print the prompt for pasting into Claude Desktop
+        print(prompt)
+        print(f"\n{'─'*60}", file=sys.stderr)
+        print(f"Prompt printed above ({len(prompt):,} chars). Paste into Claude Desktop.", file=sys.stderr)
+        print(f"Or re-run with --api to call the API directly.", file=sys.stderr)
 
 
 if __name__ == "__main__":

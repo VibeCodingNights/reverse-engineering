@@ -222,12 +222,14 @@ string search (list_strings) or grep dump.cs for string references instead.
 
 **MCP Python SDK API (verified v1.12.4):**
 ```python
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# GHIDRA_BRIDGE points at bridge_mcp_ghidra.py from the GhidraMCP clone
 server_params = StdioServerParameters(
     command="python",
-    args=["ghidra_mcp_bridge.py"],
+    args=[os.environ["GHIDRA_BRIDGE"]],
 )
 
 async with stdio_client(server_params) as (read, write):
