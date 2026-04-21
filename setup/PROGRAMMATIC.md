@@ -8,16 +8,25 @@ For people building MCP clients instead of using Claude Desktop.
 pip install "mcp>=1.12"
 ```
 
+## Point at the bridge
+
+GhidraMCP exposes an SSE server; `bridge_mcp_ghidra.py` from the GhidraMCP repo adapts it to stdio. Set an env var so your scripts find it:
+
+```bash
+export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py
+```
+
 ## Connect to GhidraMCP
 
 ```python
 import asyncio
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 server_params = StdioServerParameters(
     command="python",
-    args=["-m", "ghidra_mcp"],
+    args=[os.environ["GHIDRA_BRIDGE"]],
 )
 
 async def main():
@@ -90,7 +99,7 @@ async def decompile_class(session: ClientSession, class_name: str, script_json_p
     return results
 
 async def main():
-    server_params = StdioServerParameters(command="python", args=["-m", "ghidra_mcp"])
+    server_params = StdioServerParameters(command="python", args=[os.environ["GHIDRA_BRIDGE"]])
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:

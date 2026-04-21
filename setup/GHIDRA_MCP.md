@@ -59,6 +59,12 @@ Copy `claude_desktop_config.json` from this directory to:
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
+**Edit the path** in the copied config to point at `bridge_mcp_ghidra.py` in your GhidraMCP clone. Example:
+
+```json
+"args": ["/Users/you/code/GhidraMCP/bridge_mcp_ghidra.py"]
+```
+
 Restart Claude Desktop. You should see GhidraMCP tools available in the tool list.
 
 ## Verify
@@ -74,12 +80,13 @@ If you see them, the setup works. Move on to the game binary.
 ## Verify (Programmatic)
 
 ```python
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 server_params = StdioServerParameters(
     command="python",
-    args=["-m", "ghidra_mcp"],
+    args=[os.environ["GHIDRA_BRIDGE"]],  # path to bridge_mcp_ghidra.py
 )
 
 async with stdio_client(server_params) as (read, write):
@@ -89,4 +96,4 @@ async with stdio_client(server_params) as (read, write):
         print(result.content[0].text)
 ```
 
-If this prints function names, you're good.
+Set `GHIDRA_BRIDGE` first: `export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py`. If this prints function names, you're good.

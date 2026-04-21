@@ -5,19 +5,36 @@ Looks up methods in script.json, decompiles each through MCP,
 writes all decompilations to stdout or a file.
 
 Usage:
-    python class_decompile.py CoinManager
-    python class_decompile.py CoinManager --script-json ../metadata/script.json
-    python class_decompile.py CoinManager -o CoinManager_decompiled.c
+    python class_decompile.py SYBO_Subway_Coins_CoinManager
+    python class_decompile.py SYBO_Subway_Coins_CoinManager --script-json ../metadata/script.json
+    python class_decompile.py SYBO_Subway_Coins_CoinManager -o CoinManager_decompiled.c
+
+Requires: GHIDRA_BRIDGE env var pointing at bridge_mcp_ghidra.py.
 """
 
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+
+def _bridge_params() -> StdioServerParameters:
+    """Build MCP params from GHIDRA_BRIDGE env var (path to bridge_mcp_ghidra.py)."""
+    bridge = os.environ.get("GHIDRA_BRIDGE")
+    if not bridge:
+        print(
+            "Error: GHIDRA_BRIDGE env var not set.\n"
+            "Point it at your bridge_mcp_ghidra.py, e.g.:\n"
+            "  export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return StdioServerParameters(command="python", args=[bridge])
 
 
 def find_class_methods(script_json_path: str, class_name: str) -> list[dict]:
@@ -41,13 +58,8 @@ def find_class_methods(script_json_path: str, class_name: str) -> list[dict]:
 
 async def decompile_methods(methods: list[dict]) -> list[dict]:
     """Decompile each method via GhidraMCP."""
-    server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "ghidra_mcp"],
-    )
-
     results = []
-    async with stdio_client(server_params) as (read, write):
+    async with stdio_client(_bridge_params()) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -107,7 +119,7 @@ def _default_script_json() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Decompile all methods of a class via GhidraMCP")
-    parser.add_argument("class_name", help="Class name to decompile (e.g., CurrencyData)")
+    parser.add_argument("class_name", help="Class name to decompile (e.g., SYBO_Subway_Coins_CoinManager)")
     parser.add_argument("--script-json", default=_default_script_json(),
                         help="Path to script.json from Il2CppDumper")
     parser.add_argument("-o", "--output", help="Output file (default: stdout)")

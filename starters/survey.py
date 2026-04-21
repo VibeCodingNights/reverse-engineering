@@ -9,7 +9,9 @@ Usage:
 """
 
 import asyncio
+import os
 import re
+import sys
 from collections import Counter
 
 from mcp import ClientSession, StdioServerParameters
@@ -25,6 +27,20 @@ CONTEXT_WINDOW = 200_000
 # Subway Surfers 6.04.0 has ~118,813 functions across ~14,908 types.
 
 
+def _bridge_params() -> StdioServerParameters:
+    """Build MCP params from GHIDRA_BRIDGE env var (path to bridge_mcp_ghidra.py)."""
+    bridge = os.environ.get("GHIDRA_BRIDGE")
+    if not bridge:
+        print(
+            "Error: GHIDRA_BRIDGE env var not set.\n"
+            "Point it at your bridge_mcp_ghidra.py, e.g.:\n"
+            "  export GHIDRA_BRIDGE=/path/to/GhidraMCP/bridge_mcp_ghidra.py",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return StdioServerParameters(command="python", args=[bridge])
+
+
 def parse_class_name(function_name: str) -> str:
     """Extract class name from IL2CPP ClassName$$MethodName format."""
     if "$$" in function_name:
@@ -36,12 +52,7 @@ def parse_class_name(function_name: str) -> str:
 
 
 async def main():
-    server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "ghidra_mcp"],
-    )
-
-    async with stdio_client(server_params) as (read, write):
+    async with stdio_client(_bridge_params()) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

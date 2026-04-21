@@ -12,7 +12,7 @@ These files contain class names, method names, field names, and string literals 
 |---|---|
 | `dump.cs` | C# class definitions with field offsets and method RVAs. Every class, every method, every field — but no implementations. |
 | `script.json` | Address-to-name mappings. Feed this to Ghidra's `ghidra.py` script to rename all functions from `FUN_00xxxxxx` to `ClassName$$MethodName`. |
-| `stringliteral.json` | All string literals embedded in the binary, with their addresses. Search this for "coin", "balance", "purchase", etc. |
+| `stringliteral.json` | String literals from the binary. **Currently empty** for this APK version (see note below). Use Ghidra's string search or `list_strings` via GhidraMCP instead. |
 
 ## How Generated
 
@@ -24,9 +24,18 @@ python target/decrypt_metadata.py global-metadata.dat global-metadata-decrypted.
 Il2CppDumper libil2cpp.so global-metadata-decrypted.dat output/
 ```
 
+## String Literal Limitation
+
+`stringliteral.json` is currently empty. Subway Surfers 6.04.0 encrypts `global-metadata.dat` with a page-based XOR cipher, and the string literal data region is not fully recoverable with the current decryption approach. The class/method/field name tables (used by `dump.cs` and `script.json`) are in a different metadata region and decode correctly.
+
+For string literal search, use Ghidra's built-in string analysis or GhidraMCP's `list_strings` tool instead:
+```python
+result = await session.call_tool("list_strings", arguments={"filter": "coin"})
+```
+
 ## Using These Files
 
-**Without Ghidra:** `dump.cs` and `stringliteral.json` are searchable text. The starter scripts in `starters/` parse these directly.
+**Without Ghidra:** `dump.cs` and `script.json` are searchable text. The starter scripts in `starters/` parse these directly.
 
 ```bash
 grep -i "coin" dump.cs

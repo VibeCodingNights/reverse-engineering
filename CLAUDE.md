@@ -41,9 +41,9 @@ Good — I've confirmed the MCP Python SDK API (`v1.12.4`) and Il2CppDumper's ex
 
 #### The Binary
 
-The target is a game people actually have on their phones. **Default: Subway Surfers** — a Unity/IL2CPP game with millions of daily players. The compiled binary (`libil2cpp.so`) has roughly 40,000–60,000 functions. No debug symbols. No source code. But Unity's metadata file leaks every class name, method name, and field name from the original C#. That metadata is the lever.
+The target is a game people actually have on their phones. **Default: Subway Surfers** — a Unity/IL2CPP game with millions of daily players. The compiled binary (`libil2cpp.so`) has roughly ~118,000 functions. No debug symbols. No source code. But Unity's metadata file leaks every class name, method name, and field name from the original C#. That metadata is the lever.
 
-The challenge is NOT "hack the game." It's: **50,000 functions. Which ones handle coins? Once you find them, can the LLM explain what they do — or does it hallucinate?**
+The challenge is NOT "hack the game." It's: **118,000 functions. Which ones handle coins? Once you find them, can the LLM explain what they do — or does it hallucinate?**
 
 **Why this works without an Android emulator:** Ghidra does static analysis. It loads ARM binaries on any host OS — macOS, Windows, Linux. You don't run the game. You read the binary. The APK is a zip file. Il2CppDumper recovers class/method names from Unity's metadata. GhidraMCP connects to your local Ghidra over MCP. None of this cares about host architecture.
 
@@ -69,9 +69,9 @@ dotnet Il2CppDumper.dll libil2cpp.so global-metadata.dat output/
 ```
 This produces `output/dump.cs`, `output/script.json`, `output/stringliteral.json`.
 
-4. Verify: `grep -i "coin" output/dump.cs` should show classes like `CoinManager`, `CurrencyController`, or similar. If you see them, the extraction worked.
+4. Verify: `grep -i "coin" output/dump.cs` should show classes like `SYBO.Subway.Coins.CoinManager`, `CurrencyExchangePopup`, or similar. If you see them, the extraction worked.
 
-5. Load `libil2cpp.so` in Ghidra on a test machine. Run auto-analysis (takes 5–15 minutes for a binary this large). Open Ghidra's Script Manager (Window → Script Manager), run `ghidra.py` from Il2CppDumper's output, point it at `script.json`. Functions get renamed from `FUN_00xxxxxx` to `CoinManager$$AddCoins`, `IAPController$$ValidatePurchase`, etc. Start GhidraMCP. Verify `list_functions` returns tens of thousands of named functions. Verify `decompile_function` works on one of them.
+5. Load `libil2cpp.so` in Ghidra on a test machine. Run auto-analysis (takes 5–15 minutes for a binary this large). Open Ghidra's Script Manager (Window → Script Manager), run `ghidra.py` from Il2CppDumper's output, point it at `script.json`. Functions get renamed from `FUN_00xxxxxx` to `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`, `InAppPurchaseHandler$$ProcessPurchase`, etc. Start GhidraMCP. Verify `list_functions` returns tens of thousands of named functions. Verify `decompile_function` works on one of them.
 
 6. **Copy `libil2cpp.so`, `global-metadata.dat`, and the entire `output/` directory to 4+ USB drives.** Label them "VCN — Reverse Engineering Night." The binary does NOT go in the GitHub repo.
 
@@ -172,7 +172,7 @@ vcn-reverse-engineering/
 │                                      #   "How are coins stored? Client or server validation?"
 │
 └── docs/
-    ├── THE_PROBLEM.md                 # Token math for a 50K-function binary. The document that makes
+    ├── THE_PROBLEM.md                 # Token math for a 118K-function binary. The document that makes
     │                                  #   the challenge legible to someone arriving at 6:30.
     ├── IL2CPP_PRIMER.md               # What IL2CPP is, how Unity compiles C# → C → native, what
     │                                  #   metadata survives, what the decompiled C looks like.
@@ -184,48 +184,52 @@ vcn-reverse-engineering/
 
 `survey.py` — Connects to GhidraMCP, calls `list_functions`, groups by class prefix (IL2CPP names use `ClassName$$MethodName`), does the token math. Output:
 ```
-Functions: 53,841 across 5,203 classes
-Estimated tokens to decompile all: ~43,000,000
+Functions: 118,813 across 14,908 types
+Estimated tokens to decompile all: ~95,050,400
 Context window: 200,000 tokens
 
-You're 215x over budget.
+You're 475x over budget.
 
-Even CoinManager alone has 47 methods totaling ~38,000 tokens.
-Which of those 47 methods actually touch the coin balance?
+Even SYBO_Subway_Coins_CoinManager alone has 15 methods totaling ~3,000 tokens.
+But which of those 15 methods actually touch the coin balance?
+And what other classes does it call?
 That's the problem.
 
 Top 10 classes by method count:
-  UnityEngine_UI_Graphic    — 127 methods
-  PlayerController           — 89 methods
+  UnityEngine_UI_Graphic                — 127 methods
+  PurchaseHandler                        — 44 methods
+  CurrencyExchangePopup                  — 32 methods
   ...
-  CoinManager                — 47 methods
+  SYBO_Subway_Coins_CoinManager          — 15 methods
 ```
 
 `hunt.py` — Searches `dump.cs` and `stringliteral.json` for economy-related terms: "coin", "currency", "balance", "purchase", "IAP", "reward", "score", "wallet", "inventory". Cross-references classes appearing in multiple searches. Output:
 ```
-High-relevance classes (3+ term matches):
-  CoinManager          — 47 methods  | matched: "coin", "balance", "reward"
-  IAPController        — 23 methods  | matched: "purchase", "IAP", "currency"
-  InventoryManager     — 31 methods  | matched: "inventory", "coin", "balance"
+High-relevance classes (2+ term matches):
+  SYBO_Subway_Coins_CoinManager   — 15 methods  | matched: "coin"
+  PurchaseHandler                  — 44 methods  | matched: "purchase"
+  InAppPurchaseHandler             — 20 methods  | matched: "purchase", "iap"
+  CurrencyExchangePopup            — 32 methods  | matched: "currency"
+  ShopPurchaseManager              — 18 methods  | matched: "purchase", "shop"
 
-String literals containing "coin" (with binary addresses):
-  0x1a2b3c: "coin_balance"
-  0x1a2b90: "coinRewardMultiplier"
-  0x1a2bf4: "add_coins_reward"
+Note: stringliteral.json may be empty for this version — use Ghidra's
+string search (list_strings) or grep dump.cs for string references instead.
 ```
 
-`class_decompile.py` — Takes a class name (e.g., `CoinManager`), looks up its methods in `script.json` (which maps `{"Address": 1715004, "Name": "CoinManager$$AddCoins", "Signature": "void CoinManager$$AddCoins(...)"}`), decompiles each via GhidraMCP `decompile_function`. Outputs all decompilations in one file — one class's worth of C, small enough to fit in a single prompt.
+`class_decompile.py` — Takes a class name (e.g., `SYBO_Subway_Coins_CoinManager`), looks up its methods in `script.json` (which maps `{"Address": 1715004, "Name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp", "Signature": "void SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp(...)"}`), decompiles each via GhidraMCP `decompile_function`. Outputs all decompilations in one file — one class's worth of C, small enough to fit in a single prompt.
 
-`ask.py` — The end-to-end pipeline. Runs `hunt.py` → picks the top class → runs `class_decompile.py` → sends decompilations to the LLM with a targeted prompt: *"Here are the decompiled methods of CoinManager from a mobile game. How are coins stored? Is the balance validated on the client or server? Could a memory editor modify it?"* Prints the LLM's analysis.
+`ask.py` — The end-to-end pipeline. Runs `hunt.py` → picks the top class → runs `class_decompile.py` → sends decompilations to the LLM with a targeted prompt: *"Here are the decompiled methods of SYBO_Subway_Coins_CoinManager from a mobile game. How are coins stored? Is the balance validated on the client or server? Could a memory editor modify it?"* Prints the LLM's analysis.
 
 **MCP Python SDK API (verified v1.12.4):**
 ```python
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# GHIDRA_BRIDGE points at bridge_mcp_ghidra.py from the GhidraMCP clone
 server_params = StdioServerParameters(
     command="python",
-    args=["ghidra_mcp_bridge.py"],
+    args=[os.environ["GHIDRA_BRIDGE"]],
 )
 
 async with stdio_client(server_params) as (read, write):
@@ -235,16 +239,16 @@ async with stdio_client(server_params) as (read, write):
         # IL2CPP names use ClassName$$MethodName format
         result = await session.call_tool(
             "decompile_function",
-            arguments={"name": "CoinManager$$AddCoins"}
+            arguments={"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"}
         )
         print(result.content[0].text)
 ```
 
 **`docs/THE_PROBLEM.md`** — Pre-written with real numbers from the target binary. The document that makes the challenge legible to anyone arriving at 6:30:
 
-> This binary has 53,000 functions. You can decompile any one of them. But if you decompiled all 53,000, that's 43 million tokens — 215 times more than fits in the context window.
+> This binary has 118,813 functions. You can decompile any one of them. But if you decompiled all 118,813, that's ~95 million tokens — 475 times more than fits in the context window.
 >
-> You have metadata: every function has a name. You know there's a class called `CoinManager` with 47 methods. But which of those 47 methods actually modify the coin balance? And even after you find the right method, does the LLM understand the decompiled C well enough to tell you whether coins are validated server-side?
+> You have metadata: every function has a name. You know there's a class called `SYBO_Subway_Coins_CoinManager` with 15 methods. But which of those 15 methods actually modify the coin balance? And even after you find the right method, does the LLM understand the decompiled C well enough to tell you whether coins are validated server-side?
 >
 > The best frontier model recovers 59% of reverse engineering targets. A human expert hits 92%. The gap is not intelligence. It's that nobody built the search and triage layer between the disassembler and the prompt.
 >
@@ -290,11 +294,11 @@ People who arrive early start cloning, installing Ghidra, configuring GhidraMCP.
 
 > "There's a game on your phone. Subway Surfers. Millions of people play it. Tonight you're going to take it apart.
 >
-> On the USB drives at the front table — and in the repo — you'll find the game's compiled binary and its metadata. Fifty-three thousand functions. Every class name, every method name — courtesy of Unity leaking its metadata file.
+> On the USB drives at the front table — and in the repo — you'll find the game's compiled binary and its metadata. Over a hundred thousand functions. Every class name, every method name — courtesy of Unity leaking its metadata file.
 >
-> Your LLM can decompile any function in here. The problem: 53,000 functions is 43 million tokens. Your context window is 200K. You can't show the model everything. If you ask it 'how do coins work,' it'll decompile a handful of functions, hallucinate the other fifty-two thousand, and give you a confident answer about code it never read.
+> Your LLM can decompile any function in here. The problem: 118,000 functions is 95 million tokens. Your context window is 200K. You can't show the model everything. If you ask it 'how do coins work,' it'll decompile a handful of functions, hallucinate the other hundred thousand, and give you a confident answer about code it never read.
 >
-> The challenge: **build the layer that finds the right 20 functions out of 53,000.** Search the metadata. Rank the classes. Decompile selectively. Then ask: does this game validate coins on the client or the server? Could you actually get unlimited coins?
+> The challenge: **build the layer that finds the right 20 functions out of 118,000.** Search the metadata. Rank the classes. Decompile selectively. Then ask: does this game validate coins on the client or the server? Could you actually get unlimited coins?
 >
 > Everything's in the repo. The warm-up binary to test your GhidraMCP setup is in `warmup/`. Starter scripts are in `starters/`. Grab a USB drive for the game binary. Docs explain the IL2CPP pipeline if you haven't seen it before.
 >
@@ -312,9 +316,9 @@ No announcements. No check-ins. Hosts float.
 
 One game. One question: **where are the coins?**
 
-An LLM with GhidraMCP access can decompile individual functions on demand. But the binary has 53,000 of them. Even with Il2CppDumper metadata giving you every class and method name, you still can't decompile everything — the math doesn't work. And if you just decompile `CoinManager`, its 47 methods reference other classes, which reference other classes, and you're back to context overflow.
+An LLM with GhidraMCP access can decompile individual functions on demand. But the binary has 118,813 of them. Even with Il2CppDumper metadata giving you every class and method name, you still can't decompile everything — the math doesn't work. And if you just decompile `SYBO_Subway_Coins_CoinManager`, its 15 methods reference other classes, which reference other classes, and you're back to context overflow.
 
-The engineering problem: build the search and triage pipeline that narrows 53,000 functions to the 20 that answer your question. Then verify whether the LLM's analysis of those 20 functions is actually correct — or whether it's hallucinating about decompiled C code the way it hallucinates about everything else.
+The engineering problem: build the search and triage pipeline that narrows 118,813 functions to the 20 that answer your question. Then verify whether the LLM's analysis of those 20 functions is actually correct — or whether it's hallucinating about decompiled C code the way it hallucinates about everything else.
 
 This pipeline doesn't exist yet. Parts of it are buildable tonight.
 
@@ -332,7 +336,7 @@ This pipeline doesn't exist yet. Parts of it are buildable tonight.
    - Or download the APK yourself and run `target/extract.py` (see `target/DOWNLOAD.md`).
    - Or **load the pre-analyzed Ghidra project** from the USB drive (fastest — skip straight to step 3).
 2. If loading from scratch: open `libil2cpp.so` in Ghidra. Auto-analysis takes 5–15 minutes on a binary this large. While it runs, read `docs/IL2CPP_PRIMER.md`.
-3. Once analysis finishes: open Ghidra's Script Manager (Window → Script Manager), run `ghidra.py`, point it at `output/script.json`. Watch functions rename from `FUN_00xxxxxx` to `CoinManager$$AddCoins`, `PlayerController$$Update`, etc.
+3. Once analysis finishes: open Ghidra's Script Manager (Window → Script Manager), run `ghidra.py`, point it at `output/script.json`. Watch functions rename from `FUN_00xxxxxx` to `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp`, `PlayerController$$Update`, etc.
 4. GhidraMCP should now see all the named functions.
 
 **Step 3: Ask the LLM to find the coins (~15 min)**
@@ -341,21 +345,21 @@ This pipeline doesn't exist yet. Parts of it are buildable tonight.
 3. Now run `starters/hunt.py`. Compare its systematic metadata search against the LLM's ad-hoc exploration. What did the LLM miss? What did it find that the script didn't?
 4. Run `starters/survey.py` to see the token math. Understand why the LLM's answer is necessarily incomplete.
 
-**You've now seen the problem firsthand: even with names, 53,000 functions defeat the LLM's attention. Now build.**
+**You've now seen the problem firsthand: even with names, 118,813 functions defeat the LLM's attention. Now build.**
 
 #### HOW TO GO DEEPER
 
-Every project below attacks the same problem from a different angle: narrowing 53,000 functions to the ones that matter.
+Every project below attacks the same problem from a different angle: narrowing 118,813 functions to the ones that matter.
 
 **Build a better hunter.** `starters/hunt.py` does keyword search. Can you do better?
-- Follow the call graph: `CoinManager$$AddCoins` calls what? What calls it? Use GhidraMCP's `get_callgraph` to expand from known coin functions to their dependencies and callers.
+- Follow the call graph: `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp` calls what? What calls it? Use GhidraMCP's `get_callgraph` to expand from known coin functions to their dependencies and callers.
 - Cross-reference fields: `dump.cs` shows field offsets (`public int coinBalance; // 0x1C`). Find functions that read/write that offset using `get_disassembly`.
-- Cluster related classes: `CoinManager`, `CurrencyController`, `RewardManager`, `IAPController` probably form a subsystem. Build the dependency graph between them.
+- Cluster related classes: `SYBO_Subway_Coins_CoinManager`, `CurrencyExchangePopup`, `PurchaseHandler`, `InAppPurchaseHandler` probably form a subsystem. Build the dependency graph between them.
 
 GhidraMCP tools you'll use:
 ```
 list_functions     → {}                                    # all function names
-decompile_function → {"name": "CoinManager$$AddCoins"}     # decompile by name
+decompile_function → {"name": "SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp"}  # decompile by name
 get_callgraph      → {"address": "0x...", "max_depth": 2}  # callers + callees
 list_strings       → {"filter": "coin"}                    # search strings
 get_disassembly    → {"address": "0x...", "length": 100}   # raw disassembly
@@ -366,7 +370,7 @@ set_comment        → {"address": "0x...", "comment": "...", "comment_type": "p
 
 **Answer the actual question: can you get unlimited coins?** Trace the coin flow end-to-end:
 - Where is the balance stored? (Memory? PlayerPrefs? A local save file? A server?)
-- What happens when `AddCoins` is called? Does it make a network request?
+- What happens when `Coin_OnCoinPickedUp` is called? Does it make a network request?
 - Is there integrity checking on the save file? (Checksums, encryption, server sync?)
 - What does the IAP controller do when a purchase succeeds? Does it grant coins client-side or wait for server confirmation?
 
@@ -374,9 +378,9 @@ This is genuine reverse engineering — not abstract triage tooling, but using t
 
 **Build the annotation loop.** Use the LLM to rename and comment functions via GhidraMCP:
 ```
-set_function_signature → {"address": "0x...", "signature": "int CoinManager_GetBalance(void* this)"}
-set_comment            → {"address": "0x...", "comment": "Reads coin balance from field offset 0x1C.
-                           Calls ServerSync$$ValidateBalance before returning.",
+set_function_signature → {"address": "0x...", "signature": "void SYBO_Subway_Coins_CoinManager_OnCoinPickedUp(void* this, void* coin)"}
+set_comment            → {"address": "0x...", "comment": "Handles coin pickup event. Increments local coin count
+                           and triggers UI update via CoinManager$$UpdateCoinDisplay.",
                            "comment_type": "plate"}
 ```
 Re-export the analysis after annotation. Does the LLM's second-pass analysis improve when functions it decompiled earlier now have meaningful comments?
@@ -385,7 +389,7 @@ Re-export the analysis after annotation. Does the LLM's second-pass analysis imp
 
 Skip the starters. Here's what's interesting:
 
-- **Dynamic analysis with Frida.** If you have an Android emulator or rooted device: install Frida, hook `CoinManager$$AddCoins` at runtime. Capture arguments and return values. Feed runtime traces to the LLM alongside the static decompilation. Does dynamic data correct the hallucinations from static analysis alone? (`pip install frida-tools`, or use `frida-mcp` at `github.com/dnakov/frida-mcp` for MCP integration.)
+- **Dynamic analysis with Frida.** If you have an Android emulator or rooted device: install Frida, hook `SYBO_Subway_Coins_CoinManager$$Coin_OnCoinPickedUp` at runtime. Capture arguments and return values. Feed runtime traces to the LLM alongside the static decompilation. Does dynamic data correct the hallucinations from static analysis alone? (`pip install frida-tools`, or use `frida-mcp` at `github.com/dnakov/frida-mcp` for MCP integration.)
 
 - **Bring your own APK.** Any Unity/IL2CPP game works with the same extraction pipeline. Want to reverse engineer Genshin Impact's gacha system? Temple Run's obstacle generation? Pick a game you care about, run `target/extract.py` on its APK, and apply the same triage pattern.
 
@@ -415,7 +419,7 @@ Skip the starters. Here's what's interesting:
 Format:
 - 2–3 minutes each, hard cutoff
 - Screen share or live demo only. No slides.
-- Equally interesting: "I found the AddCoins function and it's purely client-side — no server check" and "the LLM told me coins are encrypted but I decompiled the save function and it's plaintext PlayerPrefs"
+- Equally interesting: "I found the OnCoinPickedUp function and it's purely client-side — no server check" and "the LLM told me coins are encrypted but I decompiled the save function and it's plaintext PlayerPrefs"
 - **The best demos answer the question.** "Could you get unlimited coins? Here's what I found."
 
 **Prompt if nobody volunteers:** *"Did anyone find server-side validation in the coin flow? Or is it all client-side? That tells us something about how this game is built."*
@@ -446,7 +450,7 @@ Format:
 
 ### SELF-EVALUATION
 
-1. **Does the flow reference specific challenges/targets from the description and research?** Yes — single binary, token budget as the central constraint (the description's "50,000 tokens before a single decompilation" scaled to 43M tokens for this binary), triage/compression as the engineering challenge (the research brief's "RE-specific context engineering" gap), GhidraMCP tool calls by verified name, CREBench's 59% vs. 92% gap (description + research), Reversecore_MCP multi-tool pattern (research), Il2CppDumper `script.json` schema verified against docs. The target satisfies the description's "real software, not a CTF toy" — it's a commercial product with millions of users.
+1. **Does the flow reference specific challenges/targets from the description and research?** Yes — single binary, token budget as the central constraint (the description's "50,000 tokens before a single decompilation" scaled to ~95M tokens for this binary), triage/compression as the engineering challenge (the research brief's "RE-specific context engineering" gap), GhidraMCP tool calls by verified name, CREBench's 59% vs. 92% gap (description + research), Reversecore_MCP multi-tool pattern (research), Il2CppDumper `script.json` schema verified against docs. The target satisfies the description's "real software, not a CTF toy" — it's a commercial product with millions of users.
 
 2. **Could someone read this and run the event without the organizer present?** Yes — exact APK extraction commands, Il2CppDumper CLI syntax (platform-specific), Claude Desktop config paths for macOS and Windows, pre-analyzed Ghidra project on USB drives as fast-path, host behavior with time-gated instructions, spare API key protocol, loaner laptop protocol, demo prompts, intro script verbatim.
 
@@ -456,7 +460,7 @@ Format:
 
 # [CONTEXT BRIEF]
 
-Builders reverse engineer a real mobile game (Subway Surfers, ~53,000 functions) by wiring Claude to Ghidra through GhidraMCP — the challenge is building the search and triage pipeline that finds the coin/currency functions out of 53,000 and determines whether unlimited coins are actually possible, since decompiling everything would burn 43M tokens against a 200K context window. Everyone starts by validating GhidraMCP on a warm-up binary, loading the game binary with Il2CppDumper metadata (which gives class/method names but not implementations), and watching the LLM fail to find coins on its own; depth comes from building systematic hunters, call-graph expansion, selective decompilation loops, and end-to-end coin-flow tracing — experienced RE practitioners can add Frida for dynamic analysis or bring their own APK. Organizers need: the APK pre-extracted onto USB drives (binary + Il2CppDumper output + pre-analyzed Ghidra project), Ghidra 12 on 2–3 loaner laptops (macOS + Windows), 3 spare Anthropic API keys, and the repo with working starter scripts and metadata committed; both macOS and Windows are first-class — Ghidra analyzes ARM binaries on any host OS, and setup docs cover both platforms. Intro at 6:15 (5 min hard), build time 6:20–9:30 unstructured, opt-in demos 9:30–10:00.
+Builders reverse engineer a real mobile game (Subway Surfers, ~118,813 functions) by wiring Claude to Ghidra through GhidraMCP — the challenge is building the search and triage pipeline that finds the coin/currency functions out of 118,813 and determines whether unlimited coins are actually possible, since decompiling everything would burn ~95M tokens against a 200K context window. Everyone starts by validating GhidraMCP on a warm-up binary, loading the game binary with Il2CppDumper metadata (which gives class/method names but not implementations), and watching the LLM fail to find coins on its own; depth comes from building systematic hunters, call-graph expansion, selective decompilation loops, and end-to-end coin-flow tracing — experienced RE practitioners can add Frida for dynamic analysis or bring their own APK. Organizers need: the APK pre-extracted onto USB drives (binary + Il2CppDumper output + pre-analyzed Ghidra project), Ghidra 12 on 2–3 loaner laptops (macOS + Windows), 3 spare Anthropic API keys, and the repo with working starter scripts and metadata committed; both macOS and Windows are first-class — Ghidra analyzes ARM binaries on any host OS, and setup docs cover both platforms. Intro at 6:15 (5 min hard), build time 6:20–9:30 unstructured, opt-in demos 9:30–10:00.
 
 ## Existing Repos in github.com/vibecodingnights
 - **metaprompting** — Configuration is solved. Taste isn't. Build the metaprompting loop nobody has built — Gemma 4 watches your aesthetic choices and writes the taste directives that shape the next session.

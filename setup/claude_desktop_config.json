@@ -2,7 +2,7 @@
   "mcpServers": {
     "ghidra": {
       "command": "python",
-      "args": ["-m", "ghidra_mcp"],
+      "args": ["/REPLACE/WITH/PATH/TO/GhidraMCP/bridge_mcp_ghidra.py"],
       "env": {}
     }
   }
